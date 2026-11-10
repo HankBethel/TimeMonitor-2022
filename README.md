@@ -98,6 +98,8 @@ The dashboard assumes one monitored PC per bucket. The graphs label lines by ser
 
 ### Layout, top to bottom
 
+![Summary row and raw offset graph of the TimeMonitor InfluxDB dashboard](docs/dashboard.png)
+
 **Summary row**
 
 - **Consensus offset:** the median of the latest offset from each server sampled in the last 10 minutes. This is the best single answer to "how far off is this PC's clock?". Older samples are left out because the clock keeps drifting after they were taken.
