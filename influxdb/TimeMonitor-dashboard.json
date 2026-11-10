@@ -1,0 +1,596 @@
+[
+  {
+    "apiVersion": "influxdata.com/v2alpha1",
+    "kind": "Dashboard",
+    "metadata": {
+      "name": "timemonitor-2023"
+    },
+    "spec": {
+      "name": "TimeMonitor",
+      "description": "Windows clock offset, delay and w32time status written by TimeMonitor.py (bucket ClockMetrics).",
+      "charts": [
+        {
+          "kind": "Single_Stat",
+          "name": "Consensus offset",
+          "note": "Median of the latest offset from each server sampled in the last 10 minutes (older samples are left out because the PC clock drifts).",
+          "noteOnEmpty": true,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: -10m)\n  |> filter(fn: (r) => r._field == \"Offset_s\")\n  |> last()\n  |> group()\n  |> median()\n  |> map(fn: (r) => ({r with _value: r._value * 1000.0}))"
+            }
+          ],
+          "suffix": " ms",
+          "decimalPlaces": 3,
+          "xPos": 0,
+          "yPos": 0,
+          "width": 3,
+          "height": 1,
+          "colors": [
+            {
+              "name": "laser",
+              "type": "text",
+              "hex": "#00C9FF",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "kind": "Single_Stat",
+          "name": "Server spread",
+          "note": "Largest minus smallest latest offset among servers sampled in the last 10 minutes. A large spread points to a bad server or network path.",
+          "noteOnEmpty": true,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: -10m)\n  |> filter(fn: (r) => r._field == \"Offset_s\")\n  |> last()\n  |> group()\n  |> spread()\n  |> map(fn: (r) => ({r with _value: r._value * 1000.0}))"
+            }
+          ],
+          "suffix": " ms",
+          "decimalPlaces": 3,
+          "xPos": 3,
+          "yPos": 0,
+          "width": 3,
+          "height": 1,
+          "colors": [
+            {
+              "name": "laser",
+              "type": "text",
+              "hex": "#00C9FF",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "kind": "Single_Stat",
+          "name": "Stratum",
+          "note": "Windows Time stratum. 1 with source Local CMOS Clock means it is not syncing.",
+          "noteOnEmpty": true,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"Stratum\")\n  |> last()\n  |> group()\n  |> sort(columns: [\"_time\"])\n  |> last()"
+            }
+          ],
+          "suffix": "",
+          "decimalPlaces": 0,
+          "xPos": 6,
+          "yPos": 0,
+          "width": 3,
+          "height": 1,
+          "colors": [
+            {
+              "name": "laser",
+              "type": "text",
+              "hex": "#00C9FF",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "kind": "Single_Stat",
+          "name": "w32time poll interval",
+          "note": "How often Windows Time polls its source.",
+          "noteOnEmpty": true,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"PollSeconds\")\n  |> last()\n  |> group()\n  |> sort(columns: [\"_time\"])\n  |> last()"
+            }
+          ],
+          "suffix": " s",
+          "decimalPlaces": 0,
+          "xPos": 9,
+          "yPos": 0,
+          "width": 3,
+          "height": 1,
+          "colors": [
+            {
+              "name": "laser",
+              "type": "text",
+              "hex": "#00C9FF",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "kind": "XY",
+          "name": "Offset by server (raw)",
+          "note": "Every sample. Spikes usually match spikes in round-trip delay.",
+          "noteOnEmpty": false,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"Offset_s\")\n  |> map(fn: (r) => ({r with _value: r._value * 1000.0}))\n  |> keep(columns: [\"_time\", \"_value\", \"ReferenceNTPServer\"])"
+            }
+          ],
+          "xPos": 0,
+          "yPos": 1,
+          "width": 12,
+          "height": 4,
+          "geom": "line",
+          "position": "overlaid",
+          "shade": false,
+          "hoverDimension": "auto",
+          "xCol": "_time",
+          "yCol": "_value",
+          "colors": [
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#31C0F6"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#A500A5"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#FF7E27"
+            }
+          ],
+          "axes": [
+            {
+              "name": "x",
+              "base": "10",
+              "scale": "linear"
+            },
+            {
+              "name": "y",
+              "label": "offset (ms)",
+              "base": "10",
+              "scale": "linear"
+            }
+          ]
+        },
+        {
+          "kind": "XY",
+          "name": "Offset, lowest-delay sample per minute",
+          "note": "For each server, only the sample with the smallest round-trip delay in each minute. Removes most delay spikes.",
+          "noteOnEmpty": false,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"Offset_s\" or r._field == \"Delay_s\")\n  |> group(columns: [\"_measurement\", \"ReferenceNTPServer\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> window(every: 1m)\n  |> min(column: \"Delay_s\")\n  |> window(every: inf)\n  |> map(fn: (r) => ({_time: r._time, _measurement: r._measurement, ReferenceNTPServer: r.ReferenceNTPServer, _field: \"offset\", _value: r.Offset_s * 1000.0}))\n  |> group(columns: [\"_measurement\", \"ReferenceNTPServer\"])\n  |> sort(columns: [\"_time\"])\n  |> keep(columns: [\"_time\", \"_value\", \"ReferenceNTPServer\"])"
+            }
+          ],
+          "xPos": 0,
+          "yPos": 5,
+          "width": 6,
+          "height": 4,
+          "geom": "line",
+          "position": "overlaid",
+          "shade": false,
+          "hoverDimension": "auto",
+          "xCol": "_time",
+          "yCol": "_value",
+          "colors": [
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#31C0F6"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#A500A5"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#FF7E27"
+            }
+          ],
+          "axes": [
+            {
+              "name": "x",
+              "base": "10",
+              "scale": "linear"
+            },
+            {
+              "name": "y",
+              "label": "offset (ms)",
+              "base": "10",
+              "scale": "linear"
+            }
+          ]
+        },
+        {
+          "kind": "XY",
+          "name": "Public servers (last value held)",
+          "note": "Servers with public addresses. They are sampled rarely, so each value is held until the next sample.",
+          "noteOnEmpty": false,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"Offset_s\")\n  |> filter(fn: (r) => r.ReferenceNTPServer !~ /^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)/)\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: true)\n  |> fill(usePrevious: true)\n  |> filter(fn: (r) => exists r._value)\n  |> map(fn: (r) => ({r with _value: r._value * 1000.0}))\n  |> keep(columns: [\"_time\", \"_value\", \"ReferenceNTPServer\"])"
+            }
+          ],
+          "xPos": 6,
+          "yPos": 5,
+          "width": 6,
+          "height": 4,
+          "geom": "step",
+          "position": "overlaid",
+          "shade": false,
+          "hoverDimension": "auto",
+          "xCol": "_time",
+          "yCol": "_value",
+          "colors": [
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#31C0F6"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#A500A5"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#FF7E27"
+            }
+          ],
+          "axes": [
+            {
+              "name": "x",
+              "base": "10",
+              "scale": "linear"
+            },
+            {
+              "name": "y",
+              "label": "offset (ms)",
+              "base": "10",
+              "scale": "linear"
+            }
+          ]
+        },
+        {
+          "kind": "XY",
+          "name": "Offset +/- delay/2, local servers",
+          "note": "For servers with private (10.x, 172.16-31.x, 192.168.x) addresses: the true offset lies between low and high.",
+          "noteOnEmpty": false,
+          "queries": [
+            {
+              "query": "data = from(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"Offset_s\" or r._field == \"Delay_s\")\n  |> filter(fn: (r) => r.ReferenceNTPServer =~ /^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)/)\n  |> group(columns: [\"_measurement\", \"ReferenceNTPServer\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n\nlow = data |> map(fn: (r) => ({_time: r._time, _measurement: r._measurement, ReferenceNTPServer: r.ReferenceNTPServer, _field: \"low\", _value: (r.Offset_s - r.Delay_s / 2.0) * 1000.0}))\nmid = data |> map(fn: (r) => ({_time: r._time, _measurement: r._measurement, ReferenceNTPServer: r.ReferenceNTPServer, _field: \"offset\", _value: r.Offset_s * 1000.0}))\nhigh = data |> map(fn: (r) => ({_time: r._time, _measurement: r._measurement, ReferenceNTPServer: r.ReferenceNTPServer, _field: \"high\", _value: (r.Offset_s + r.Delay_s / 2.0) * 1000.0}))\n\nunion(tables: [low, mid, high])\n  |> group(columns: [\"_measurement\", \"ReferenceNTPServer\", \"_field\"])\n  |> sort(columns: [\"_time\"])\n  |> keep(columns: [\"_time\", \"_value\", \"ReferenceNTPServer\", \"_field\"])"
+            }
+          ],
+          "xPos": 0,
+          "yPos": 9,
+          "width": 6,
+          "height": 4,
+          "geom": "line",
+          "position": "overlaid",
+          "shade": false,
+          "hoverDimension": "auto",
+          "xCol": "_time",
+          "yCol": "_value",
+          "colors": [
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#31C0F6"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#A500A5"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#FF7E27"
+            }
+          ],
+          "axes": [
+            {
+              "name": "x",
+              "base": "10",
+              "scale": "linear"
+            },
+            {
+              "name": "y",
+              "label": "ms",
+              "base": "10",
+              "scale": "linear"
+            }
+          ]
+        },
+        {
+          "kind": "XY",
+          "name": "Round-trip delay by server",
+          "note": "",
+          "noteOnEmpty": false,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"Delay_s\")\n  |> map(fn: (r) => ({r with _value: r._value * 1000.0}))\n  |> keep(columns: [\"_time\", \"_value\", \"ReferenceNTPServer\"])"
+            }
+          ],
+          "xPos": 6,
+          "yPos": 9,
+          "width": 6,
+          "height": 4,
+          "geom": "line",
+          "position": "overlaid",
+          "shade": false,
+          "hoverDimension": "auto",
+          "xCol": "_time",
+          "yCol": "_value",
+          "colors": [
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#31C0F6"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#A500A5"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#FF7E27"
+            }
+          ],
+          "axes": [
+            {
+              "name": "x",
+              "base": "10",
+              "scale": "linear"
+            },
+            {
+              "name": "y",
+              "label": "delay (ms)",
+              "base": "10",
+              "scale": "linear"
+            }
+          ]
+        },
+        {
+          "kind": "Table",
+          "name": "w32time status",
+          "note": "No data in this time range.",
+          "noteOnEmpty": true,
+          "queries": [
+            {
+              "query": "import \"strings\"\n\nfrom(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"Stratum\" or r._field == \"Source\" or r._field == \"ReferenceIP\" or r._field == \"LastSync\" or r._field == \"PollSeconds\")\n  |> last()\n  |> map(fn: (r) => ({r with _value: string(v: r._value)}))\n  |> group(columns: [\"_measurement\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> map(fn: (r) => ({r with host: r._measurement, LastSync: strings.replaceAll(v: r.LastSync, t: \"_\", u: \" \")}))\n  |> keep(columns: [\"host\", \"Stratum\", \"Source\", \"ReferenceIP\", \"PollSeconds\", \"LastSync\"])"
+            }
+          ],
+          "xPos": 0,
+          "yPos": 13,
+          "width": 12,
+          "height": 2,
+          "decimalPlaces": 3,
+          "tableOptions": {
+            "verticalTimeAxis": true,
+            "wrapping": "wrap",
+            "fixFirstColumn": true
+          },
+          "fieldOptions": [
+            {
+              "fieldName": "host",
+              "displayName": "Host",
+              "visible": true
+            },
+            {
+              "fieldName": "Stratum",
+              "displayName": "Stratum",
+              "visible": true
+            },
+            {
+              "fieldName": "Source",
+              "displayName": "Source",
+              "visible": true
+            },
+            {
+              "fieldName": "ReferenceIP",
+              "displayName": "Reference IP",
+              "visible": true
+            },
+            {
+              "fieldName": "PollSeconds",
+              "displayName": "Poll (s)",
+              "visible": true
+            },
+            {
+              "fieldName": "LastSync",
+              "displayName": "Last sync",
+              "visible": true
+            }
+          ],
+          "timeFormat": "YYYY-MM-DD HH:mm:ss",
+          "colors": [
+            {
+              "name": "paint",
+              "type": "text",
+              "hex": "#FFFFFF",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "kind": "Table",
+          "name": "Latest sample per server",
+          "note": "No row for a server: no sample in this time range.",
+          "noteOnEmpty": true,
+          "queries": [
+            {
+              "query": "n = int(v: now())\n\nfrom(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"Offset_s\" or r._field == \"Delay_s\")\n  |> last()\n  |> group(columns: [\"_measurement\", \"ReferenceNTPServer\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n      host: r._measurement,\n      server: r.ReferenceNTPServer,\n      offset_ms: r.Offset_s * 1000.0,\n      delay_ms: r.Delay_s * 1000.0,\n      age_s: (n - int(v: r._time)) / 1000000000,\n      last_sample: r._time}))\n  |> group()\n  |> sort(columns: [\"host\", \"server\"])"
+            }
+          ],
+          "xPos": 0,
+          "yPos": 15,
+          "width": 12,
+          "height": 4,
+          "decimalPlaces": 3,
+          "tableOptions": {
+            "verticalTimeAxis": true,
+            "wrapping": "truncate",
+            "fixFirstColumn": true
+          },
+          "fieldOptions": [
+            {
+              "fieldName": "server",
+              "displayName": "Server",
+              "visible": true
+            },
+            {
+              "fieldName": "offset_ms",
+              "displayName": "Offset (ms)",
+              "visible": true
+            },
+            {
+              "fieldName": "delay_ms",
+              "displayName": "Delay (ms)",
+              "visible": true
+            },
+            {
+              "fieldName": "age_s",
+              "displayName": "Age (s)",
+              "visible": true
+            },
+            {
+              "fieldName": "last_sample",
+              "displayName": "Last sample",
+              "visible": true
+            },
+            {
+              "fieldName": "host",
+              "displayName": "Host",
+              "visible": true
+            }
+          ],
+          "timeFormat": "YYYY-MM-DD HH:mm:ss",
+          "colors": [
+            {
+              "name": "paint",
+              "type": "text",
+              "hex": "#FFFFFF",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "kind": "XY",
+          "name": "Stratum over time",
+          "note": "",
+          "noteOnEmpty": false,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"Stratum\")\n  |> keep(columns: [\"_time\", \"_value\"])"
+            }
+          ],
+          "xPos": 0,
+          "yPos": 19,
+          "width": 6,
+          "height": 3,
+          "geom": "step",
+          "position": "overlaid",
+          "shade": false,
+          "hoverDimension": "auto",
+          "xCol": "_time",
+          "yCol": "_value",
+          "colors": [
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#31C0F6"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#A500A5"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#FF7E27"
+            }
+          ],
+          "axes": [
+            {
+              "name": "x",
+              "base": "10",
+              "scale": "linear"
+            },
+            {
+              "name": "y",
+              "label": "stratum",
+              "base": "10",
+              "scale": "linear"
+            }
+          ]
+        },
+        {
+          "kind": "XY",
+          "name": "w32time poll interval over time",
+          "note": "",
+          "noteOnEmpty": false,
+          "queries": [
+            {
+              "query": "from(bucket: \"ClockMetrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"PollSeconds\")\n  |> keep(columns: [\"_time\", \"_value\"])"
+            }
+          ],
+          "xPos": 6,
+          "yPos": 19,
+          "width": 6,
+          "height": 3,
+          "geom": "step",
+          "position": "overlaid",
+          "shade": false,
+          "hoverDimension": "auto",
+          "xCol": "_time",
+          "yCol": "_value",
+          "colors": [
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#31C0F6"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#A500A5"
+            },
+            {
+              "name": "Nineteen Eighty Four",
+              "type": "scale",
+              "hex": "#FF7E27"
+            }
+          ],
+          "axes": [
+            {
+              "name": "x",
+              "base": "10",
+              "scale": "linear"
+            },
+            {
+              "name": "y",
+              "label": "seconds",
+              "base": "10",
+              "scale": "linear"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

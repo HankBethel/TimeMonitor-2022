@@ -1,0 +1,6 @@
+.vs/
+__pycache__/
+*.pyc
+*.zip
+_private_backup/
+config.ini
