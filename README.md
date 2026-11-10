@@ -1,6 +1,6 @@
 # TimeMonitor
 
-A test program from 2023. Windows keeps its clock in sync with w32time, but gives little sign of how accurate the clock actually is. TimeMonitor measures it: it compares the PC's clock with several NTP servers, local and public, records the results in InfluxDB, and comes with an InfluxDB dashboard that shows drift, network noise and how far the clock can be trusted. It needs only Python and Windows' own `w32tm` tool, plus the `influxdb-client` package for InfluxDB output.
+A test program from 2022. Windows keeps its clock in sync with w32time, but gives little sign of how accurate the clock actually is. TimeMonitor measures it: it compares the PC's clock with several NTP servers, local and public, records the results in InfluxDB, and comes with an InfluxDB dashboard that shows drift, network noise and how far the clock can be trusted. It needs only Python and Windows' own `w32tm` tool, plus the `influxdb-client` package for InfluxDB output.
 
 Every few seconds it:
 
@@ -109,6 +109,8 @@ The dashboard assumes one monitored PC per bucket. The graphs label lines by ser
 
 **Offset by server (raw):** every sample from every server, in ms. Shows the true picture, noise included.
 
+![Lowest-delay offset, public servers, uncertainty band and round-trip delay panels](docs/dashboard-graphs.png)
+
 **Offset, lowest-delay sample per minute:** for each server, only the sample with the smallest round-trip delay in each minute. A sample that took longer is more likely to have been delayed one way more than the other, which shows up as a false offset. Picking the fastest sample is the same idea NTP uses to filter its samples. Read the clock's behavior from this graph.
 
 **Public servers (last value held):** servers with public addresses. They are sampled rarely, so each value is drawn as a step that holds until the next sample.
@@ -116,6 +118,8 @@ The dashboard assumes one monitored PC per bucket. The graphs label lines by ser
 **Offset +/- delay/2, local servers:** for servers with private addresses (10.x, 172.16–31.x, 192.168.x), three lines each: the offset, and the offset minus and plus half the round-trip delay. The program cannot tell how the delay splits between the trip out and the trip back, so the true offset lies somewhere between the low and high lines. That range is how far the clock can be trusted.
 
 **Round-trip delay by server:** network delay in ms. Use it to explain spikes in the raw offset graph.
+
+![w32time status, latest sample per server, stratum and poll interval panels](docs/dashboard-tables.png)
 
 **w32time status:** the latest Windows Time status for the PC: stratum, source, reference IP, poll interval and last successful sync.
 

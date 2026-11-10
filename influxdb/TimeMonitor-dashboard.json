@@ -3,7 +3,7 @@
     "apiVersion": "influxdata.com/v2alpha1",
     "kind": "Dashboard",
     "metadata": {
-      "name": "timemonitor-2023"
+      "name": "timemonitor-2022"
     },
     "spec": {
       "name": "TimeMonitor",
@@ -382,9 +382,14 @@
           "tableOptions": {
             "verticalTimeAxis": true,
             "wrapping": "wrap",
-            "fixFirstColumn": true
+            "fixFirstColumn": false
           },
           "fieldOptions": [
+            {
+              "fieldName": "table",
+              "displayName": "table",
+              "visible": false
+            },
             {
               "fieldName": "host",
               "displayName": "Host",
@@ -444,9 +449,14 @@
           "tableOptions": {
             "verticalTimeAxis": true,
             "wrapping": "truncate",
-            "fixFirstColumn": true
+            "fixFirstColumn": false
           },
           "fieldOptions": [
+            {
+              "fieldName": "table",
+              "displayName": "table",
+              "visible": false
+            },
             {
               "fieldName": "server",
               "displayName": "Server",

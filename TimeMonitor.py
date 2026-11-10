@@ -2,7 +2,7 @@
 # offset, delay and w32time status to InfluxDB.
 #
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2023 Hank Karl
+# Copyright (C) 2022 Hank Karl
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
